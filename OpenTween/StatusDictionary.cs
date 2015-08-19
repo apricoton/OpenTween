@@ -41,21 +41,31 @@ namespace OpenTween
 {
     public class PostClass : ICloneable
     {
-        public class StatusGeo
+        public struct StatusGeo : IEquatable<StatusGeo>
         {
-            public double Lng { get; set; }
-            public double Lat { get; set; }
+            public double Longitude { get; }
+            public double Latitude { get; }
 
-            public override bool Equals(object obj)
+            public StatusGeo(double longitude, double latitude)
             {
-                var geo = obj as StatusGeo;
-                return geo != null && geo.Lng == this.Lng && geo.Lat == this.Lat;
+                this.Longitude = longitude;
+                this.Latitude = latitude;
             }
 
             public override int GetHashCode()
-            {
-                return this.Lng.GetHashCode() ^ this.Lat.GetHashCode();
-            }
+                => this.Longitude.GetHashCode() ^ this.Latitude.GetHashCode();
+
+            public override bool Equals(object obj)
+                => obj is StatusGeo ? this.Equals((StatusGeo)obj) : false;
+
+            public bool Equals(StatusGeo other)
+                => this.Longitude == other.Longitude && this.Latitude == other.Longitude;
+
+            public static bool operator ==(StatusGeo left, StatusGeo right)
+                => left.Equals(right);
+
+            public static bool operator !=(StatusGeo left, StatusGeo right)
+                => !left.Equals(right);
         }
         public string Nickname { get; set; }
         public string TextFromApi { get; set; }
@@ -83,7 +93,7 @@ namespace OpenTween
         public string RetweetedBy { get; set; }
         public long? RetweetedId { get; set; }
         private bool _IsDeleted = false;
-        private StatusGeo _postGeo = new StatusGeo();
+        private StatusGeo? _postGeo = null;
         public int RetweetedCount { get; set; }
         public long? RetweetedByUserId { get; set; }
         public long? InReplyToUserId { get; set; }
@@ -130,7 +140,7 @@ namespace OpenTween
                 bool FilterHit,
                 string RetweetedBy,
                 long? RetweetedId,
-                StatusGeo Geo)
+                StatusGeo? Geo)
             : this()
         {
             this.Nickname = Nickname;
@@ -184,7 +194,7 @@ namespace OpenTween
             {
                 if (this.RetweetedId != null)
                 {
-                    var post = this.GetRetweetSource(this.RetweetedId.Value);
+                    var post = this.RetweetSource;
                     if (post != null)
                     {
                         return post.IsFav;
@@ -198,7 +208,7 @@ namespace OpenTween
                 _IsFav = value;
                 if (this.RetweetedId != null)
                 {
-                    var post = this.GetRetweetSource(this.RetweetedId.Value);
+                    var post = this.RetweetSource;
                     if (post != null)
                     {
                         post.IsFav = value;
@@ -286,7 +296,15 @@ namespace OpenTween
             }
         }
 
-        public StatusGeo PostGeo
+        protected virtual PostClass RetweetSource
+        {
+            get
+            {
+                return TabInformations.GetInstance().RetweetSource(this.RetweetedId.Value);
+            }
+        }
+
+        public StatusGeo? PostGeo
         {
             get
             {
@@ -294,7 +312,7 @@ namespace OpenTween
             }
             set
             {
-                if (value != null && (value.Lat != 0 || value.Lng != 0))
+                if (value != null)
                 {
                     _states |= States.Geo;
                 }
@@ -347,11 +365,6 @@ namespace OpenTween
                 return true;
 
             return false;
-        }
-
-        protected virtual PostClass GetRetweetSource(long statusId)
-        {
-            return TabInformations.GetInstance().RetweetSource(statusId);
         }
 
         [Obsolete("Use PostClass.Clone() instead.")]
@@ -415,7 +428,6 @@ namespace OpenTween
         {
             var clone = (PostClass)this.MemberwiseClone();
             clone.ReplyToList = new List<string>(this.ReplyToList);
-            clone.PostGeo = new StatusGeo { Lng = this.PostGeo.Lng, Lat = this.PostGeo.Lat };
             clone.Media = new List<MediaInfo>(this.Media);
             clone.QuoteStatusIds = this.QuoteStatusIds.ToArray();
 
@@ -426,8 +438,8 @@ namespace OpenTween
 
     public class MediaInfo
     {
-        public string Url { get; private set; }
-        public string VideoUrl { get; private set; }
+        public string Url { get; }
+        public string VideoUrl { get; }
 
         public MediaInfo(string url)
             : this(url, null)
@@ -790,7 +802,7 @@ namespace OpenTween
 
                 foreach (var p in userPosts)
                 {
-                    p.PostGeo = new PostClass.StatusGeo();
+                    p.PostGeo = null;
                 }
 
                 var userPosts2 = from tb in this.GetTabsInnerStorageType()
@@ -800,7 +812,7 @@ namespace OpenTween
 
                 foreach (var p in userPosts2)
                 {
-                    p.PostGeo = new PostClass.StatusGeo();
+                    p.PostGeo = null;
                 }
             }
         }
@@ -1147,9 +1159,8 @@ namespace OpenTween
         {
             var retweetedId = item.RetweetedId.Value;
 
-            //true:追加、False:保持済み
             PostClass status;
-            if (_retweets.TryGetValue(retweetedId, out status))
+            if (this._retweets.TryGetValue(retweetedId, out status))
             {
                 status.RetweetedCount++;
                 if (status.RetweetedCount > 10)
@@ -1159,8 +1170,8 @@ namespace OpenTween
                 return;
             }
 
-            _retweets.Add(
-                        item.RetweetedId.Value,
+            this._retweets.Add(
+                        retweetedId,
                         new PostClass(
                             item.Nickname,
                             item.TextFromApi,
@@ -1188,9 +1199,12 @@ namespace OpenTween
                             "",
                             null,
                             item.PostGeo
-                        )
+                        ) {
+                            RetweetedCount = 1,
+                            Media = new List<MediaInfo>(item.Media),
+                            QuoteStatusIds = item.QuoteStatusIds.ToArray(),
+                        }
                     );
-            _retweets[retweetedId].RetweetedCount++;
         }
 
         public bool AddQuoteTweet(PostClass item)
@@ -1532,8 +1546,8 @@ namespace OpenTween
             }
             set
             {
-                SinceId = 0;
                 _searchLang = value;
+                this.ResetFetchIds();
             }
         }
         public string SearchWords
@@ -1544,8 +1558,8 @@ namespace OpenTween
             }
             set
             {
-                SinceId = 0;
                 _searchWords = value.Trim();
+                this.ResetFetchIds();
             }
         }
 
@@ -1660,6 +1674,15 @@ namespace OpenTween
             this.TabName = TabName;
             this.TabType = TabType;
             this.ListInfo = list;
+        }
+
+        /// <summary>
+        /// タブ更新時に使用する SinceId, OldestId をリセットする
+        /// </summary>
+        public void ResetFetchIds()
+        {
+            this.SinceId = 0L;
+            this.OldestId = long.MaxValue;
         }
 
         public void Sort()
@@ -1926,7 +1949,7 @@ namespace OpenTween
         internal bool SetReadState(long statusId, bool read)
         {
             if (!this._ids.Contains(statusId))
-                throw new ArgumentException("statusId");
+                throw new ArgumentException(nameof(statusId));
 
             if (this.IsInnerStorageTabType)
                 this.Posts[statusId].IsRead = read;
@@ -2019,7 +2042,7 @@ namespace OpenTween
             get
             {
                 var id = GetId(Index);
-                if (id < 0) throw new ArgumentException("Index can't find. Index=" + Index.ToString() + "/TabName=" + TabName);
+                if (id < 0) throw new ArgumentException("Index can't find. Index=" + Index.ToString() + "/TabName=" + TabName, nameof(Index));
                 return Posts[id];
             }
         }
@@ -2151,7 +2174,8 @@ namespace OpenTween
             MyCommon.TabUsageType.PublicSearch |
             MyCommon.TabUsageType.Lists |
             MyCommon.TabUsageType.UserTimeline |
-            MyCommon.TabUsageType.Related;
+            MyCommon.TabUsageType.Related |
+            MyCommon.TabUsageType.SearchResults;
 
         /// <summary>
         /// デフォルトタブかどうかを示す値を取得します。

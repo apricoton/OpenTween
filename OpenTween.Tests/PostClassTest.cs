@@ -59,18 +59,23 @@ namespace OpenTween
                 bool FilterHit = false,
                 string RetweetedBy = null,
                 long? RetweetedId = null,
-                StatusGeo Geo = null) :
+                StatusGeo? Geo = null) :
                 base(Nickname, textFromApi, text, ImageUrl, screenName, createdAt, statusId, IsFav, IsRead,
                 IsReply, IsExcludeReply, IsProtect, IsOwl, IsMark, InReplyToUser, InReplyToStatusId, Source,
                 SourceUri, ReplyToList, IsMe, IsDm, userId, FilterHit, RetweetedBy, RetweetedId, Geo)
             {
             }
 
-            protected override PostClass GetRetweetSource(long statusId)
+            protected override PostClass RetweetSource
             {
-                return PostClassTest.TestCases.ContainsKey(statusId) ?
-                    PostClassTest.TestCases[statusId] :
-                    null;
+                get
+                {
+                    var retweetedId = this.RetweetedId.Value;
+
+                    return PostClassTest.TestCases.ContainsKey(retweetedId) ?
+                        PostClassTest.TestCases[retweetedId] :
+                        null;
+                }
             }
         }
 
@@ -80,9 +85,9 @@ namespace OpenTween
         {
             PostClassTest.TestCases = new Dictionary<long, PostClass>
             {
-                {1L, new TestPostClass(statusId: 1L)},
-                {2L, new TestPostClass(statusId: 2L, IsFav: true)},
-                {3L, new TestPostClass(statusId: 3L, IsFav: false, RetweetedId: 2L)},
+                [1L] = new TestPostClass(statusId: 1L),
+                [2L] = new TestPostClass(statusId: 2L, IsFav: true),
+                [3L] = new TestPostClass(statusId: 3L, IsFav: false, RetweetedId: 2L),
             };
         }
 
@@ -155,7 +160,7 @@ namespace OpenTween
                 IsProtect = protect,
                 IsMark = mark,
                 InReplyToStatusId = reply ? (long?)100L : null,
-                PostGeo = geo ? new PostClass.StatusGeo { Lat = -47.15, Lng = -126.716667 } : new PostClass.StatusGeo(),
+                PostGeo = geo ? new PostClass.StatusGeo(-126.716667, -47.15) : (PostClass.StatusGeo?)null,
             };
 
             Assert.Equal(expected, post.StateIndex);

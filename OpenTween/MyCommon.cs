@@ -217,11 +217,13 @@ namespace OpenTween
             ListDestroyed = 16384,
             Mute = 32768,
             Unmute = 65536,
+            QuotedTweet = 131072,
+            Retweet = 262144,
 
             All = (None | Favorite | Unfavorite | Follow | ListMemberAdded | ListMemberRemoved |
                    Block | Unblock | UserUpdate | Deleted | ListCreated | ListUpdated | Unfollow |
                    ListUserSubscribed | ListUserUnsubscribed | ListDestroyed |
-                   Mute | Unmute),
+                   Mute | Unmute | QuotedTweet | Retweet),
         }
 
         public static _Assembly EntryAssembly { get; internal set; }
@@ -641,8 +643,8 @@ namespace OpenTween
                 }
                 finally
                 {
-                    if (msOut != null) msOut.Dispose();
-                    if (desdecrypt != null) desdecrypt.Dispose();
+                    msOut?.Dispose();
+                    desdecrypt?.Dispose();
                 }
             }
         }
@@ -695,9 +697,9 @@ namespace OpenTween
                 }
                 finally
                 {
-                    if (msIn != null) msIn.Dispose();
-                    if (desdecrypt != null) desdecrypt.Dispose();
-                    if (cryptStreem != null) cryptStreem.Dispose();
+                    msIn?.Dispose();
+                    desdecrypt?.Dispose();
+                    cryptStreem?.Dispose();
                 }
             }
         }
@@ -745,6 +747,7 @@ namespace OpenTween
             Related = 512,
             UserTimeline = 1024,
             Mute = 2048,
+            SearchResults = 4096,
             //RTMyTweet
             //RTByOthers
             //RTByMe
@@ -780,7 +783,7 @@ namespace OpenTween
             }
             finally
             {
-                if (img != null) img.Dispose();
+                img?.Dispose();
             }
         }
 
@@ -1038,6 +1041,27 @@ namespace OpenTween
         {
             for (var i = from; i >= to; i--)
                 yield return i;
+        }
+
+        /// <summary>
+        /// 2バイト文字も考慮したUrlエンコード
+        /// </summary>
+        /// <param name="stringToEncode">エンコードする文字列</param>
+        /// <returns>エンコード結果文字列</returns>
+        public static string UrlEncode(string stringToEncode)
+        {
+            const string UnreservedChars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_.~";
+            StringBuilder sb = new StringBuilder();
+            byte[] bytes = Encoding.UTF8.GetBytes(stringToEncode);
+
+            foreach (byte b in bytes)
+            {
+                if (UnreservedChars.IndexOf((char)b) != -1)
+                    sb.Append((char)b);
+                else
+                    sb.AppendFormat("%{0:X2}", b);
+            }
+            return sb.ToString();
         }
     }
 }

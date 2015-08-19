@@ -999,7 +999,7 @@
     <value>再生数:</value>
   </data>
   <data name="FavoriteLimitCountText" xml:space="preserve">
-    <value>一度にFav追加が実行できるのは250件までです</value>
+    <value>一度にFav追加が実行できるのは{0}件までです</value>
   </data>
   <data name="TextSearchCountApi_Validating1" xml:space="preserve">
     <value>取得発言数は20～100件を指定してください。</value>
@@ -1188,5 +1188,11 @@
   </data>
   <data name="LoadingText" xml:space="preserve">
     <value>読み込み中...</value>
+  </data>
+  <data name="PostPictureConfirm3" xml:space="preserve">
+    <value>クリップボードから画像を貼り付けようとしています。よろしいですか？</value>
+  </data>
+  <data name="SearchResults_TabName" xml:space="preserve">
+    <value>検索結果</value>
   </data>
 </root>

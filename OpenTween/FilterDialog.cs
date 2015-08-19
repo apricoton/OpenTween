@@ -221,6 +221,9 @@ namespace OpenTween
                 case MyCommon.TabUsageType.Mute:
                     LabelTabType.Text = "Mute";
                     break;
+                case MyCommon.TabUsageType.SearchResults:
+                    LabelTabType.Text = "SearchResults";
+                    break;
                 default:
                     LabelTabType.Text = "UNKNOWN";
                     break;
@@ -1000,10 +1003,13 @@ namespace OpenTween
                 ListElement list = null;
                 if (tabType == MyCommon.TabUsageType.Lists)
                 {
-                    string rslt = ((TweenMain)this.Owner).TwitterInstance.GetListsApi();
-                    if (!string.IsNullOrEmpty(rslt))
+                    try
                     {
-                        MessageBox.Show("Failed to get lists. (" + rslt + ")");
+                        ((TweenMain)this.Owner).TwitterInstance.GetListsApi();
+                    }
+                    catch (WebApiException ex)
+                    {
+                        MessageBox.Show("Failed to get lists. (" + ex.Message + ")");
                     }
                     using (ListAvailable listAvail = new ListAvailable())
                     {

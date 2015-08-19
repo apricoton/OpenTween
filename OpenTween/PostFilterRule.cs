@@ -96,7 +96,7 @@ namespace OpenTween
             set
             {
                 if (value == null)
-                    throw new ArgumentNullException("value");
+                    throw new ArgumentNullException(nameof(value));
 
                 this.SetProperty(ref this._FilterBody, value);
             }
@@ -110,7 +110,7 @@ namespace OpenTween
             set
             {
                 if (value == null)
-                    throw new ArgumentNullException("value");
+                    throw new ArgumentNullException(nameof(value));
 
                 this.SetProperty(ref this._ExFilterBody, value);
             }
@@ -437,6 +437,9 @@ namespace OpenTween
                 postParam,
                 typeof(PostClass).GetProperty(targetFieldName));
 
+            // targetField ?? ""
+            var targetValue = Expression.Coalesce(targetField, Expression.Constant(string.Empty));
+
             if (useRegex)
             {
                 var regex = new Regex(pattern, caseSensitive ? RegexOptions.None : RegexOptions.IgnoreCase);
@@ -445,7 +448,7 @@ namespace OpenTween
                 return Expression.Call(
                     Expression.Constant(regex),
                     typeof(Regex).GetMethod("IsMatch", new[] { typeof(string) }),
-                    targetField);
+                    targetValue);
             }
             else
             {
@@ -458,7 +461,7 @@ namespace OpenTween
                     return Expression.Call(
                         Expression.Constant(pattern),
                         typeof(string).GetMethod("Equals", new[] { typeof(string), typeof(StringComparison) }),
-                        targetField,
+                        targetValue,
                         Expression.Constant(compOpt));
 
                 }
@@ -468,7 +471,7 @@ namespace OpenTween
                     // targetField.IndexOf(pattern, compOpt) != -1
                     return Expression.NotEqual(
                         Expression.Call(
-                            targetField,
+                            targetValue,
                             typeof(string).GetMethod("IndexOf", new[] { typeof(string), typeof(StringComparison) }),
                             Expression.Constant(pattern),
                             Expression.Constant(compOpt)),
@@ -544,8 +547,7 @@ namespace OpenTween
         {
             this.IsDirty = true;
 
-            if (this.PropertyChanged != null)
-                this.PropertyChanged(this, e);
+            this.PropertyChanged?.Invoke(this, e);
         }
 
         #region from Tween v1.1.0.0
@@ -778,6 +780,16 @@ namespace OpenTween
             }
 
             return true;
+        }
+
+        public override int GetHashCode()
+        {
+            return this.FilterName?.GetHashCode() ?? 0 ^
+                this.FilterSource?.GetHashCode() ?? 0 ^
+                this.FilterBody.Select(x => x?.GetHashCode() ?? 0).Sum() ^
+                this.ExFilterName?.GetHashCode() ?? 0 ^
+                this.ExFilterSource?.GetHashCode() ?? 0 ^
+                this.ExFilterBody.Select(x => x?.GetHashCode() ?? 0).Sum();
         }
     }
 }

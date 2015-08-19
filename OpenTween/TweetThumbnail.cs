@@ -66,7 +66,7 @@ namespace OpenTween
 
             this.scrollBar.Enabled = false;
 
-            if (post.Media.Count == 0 && post.PostGeo.Lat == 0 && post.PostGeo.Lng == 0)
+            if (post.Media.Count == 0 && post.PostGeo == null)
             {
                 this.SetThumbnailCount(0);
                 return;
@@ -104,8 +104,7 @@ namespace OpenTween
             if (thumbnails.Length > 1)
                 this.scrollBar.Enabled = true;
 
-            if (this.ThumbnailLoading != null)
-                this.ThumbnailLoading(this, EventArgs.Empty);
+            this.ThumbnailLoading?.Invoke(this, EventArgs.Empty);
 
             await Task.WhenAll(loadTasks).ConfigureAwait(false);
         }
@@ -137,8 +136,7 @@ namespace OpenTween
                     var memoryImage = picbox.Image;
                     picbox.Dispose();
 
-                    if (memoryImage != null)
-                        memoryImage.Dispose();
+                    memoryImage?.Dispose();
 
                     // メモリリーク対策 (http://stackoverflow.com/questions/2792427#2793714)
                     picbox.ContextMenuStrip = null;
@@ -216,10 +214,7 @@ namespace OpenTween
 
             if (thumb == null) return;
 
-            if (this.ThumbnailDoubleClick != null)
-            {
-                this.ThumbnailDoubleClick(this, new ThumbnailDoubleClickEventArgs(thumb));
-            }
+            this.ThumbnailDoubleClick?.Invoke(this, new ThumbnailDoubleClickEventArgs(thumb));
         }
 
         private void contextMenuStrip_Opening(object sender, CancelEventArgs e)
@@ -244,14 +239,13 @@ namespace OpenTween
             var searchTargetUri = (string)this.searchSimilarImageMenuItem.Tag;
             var searchUri = this.GetImageSearchUri(searchTargetUri);
 
-            if (this.ThumbnailImageSearchClick != null)
-                this.ThumbnailImageSearchClick(this, new ThumbnailImageSearchEventArgs(searchUri));
+            this.ThumbnailImageSearchClick?.Invoke(this, new ThumbnailImageSearchEventArgs(searchUri));
         }
     }
 
     public class ThumbnailDoubleClickEventArgs : EventArgs
     {
-        public ThumbnailInfo Thumbnail { get; private set; }
+        public ThumbnailInfo Thumbnail { get; }
 
         public ThumbnailDoubleClickEventArgs(ThumbnailInfo thumbnail)
         {
@@ -261,7 +255,7 @@ namespace OpenTween
 
     public class ThumbnailImageSearchEventArgs : EventArgs
     {
-        public string ImageUrl { get; private set; }
+        public string ImageUrl { get; }
 
         public ThumbnailImageSearchEventArgs(string url)
         {

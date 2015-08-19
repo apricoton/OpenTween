@@ -352,7 +352,7 @@ namespace OpenTween
                         return await this.ShortenByUxnuAsync(srcUri)
                             .ConfigureAwait(false);
                     default:
-                        throw new ArgumentException("Unknown shortener.", "shortenerType");
+                        throw new ArgumentException("Unknown shortener.", nameof(shortenerType));
                 }
             }
             catch (OperationCanceledException)
@@ -452,11 +452,11 @@ namespace OpenTween
 
             var query = new Dictionary<string, string>
             {
-                {"login", this.BitlyId},
-                {"apiKey", this.BitlyKey},
-                {"format", "txt"},
-                {"domain", domain},
-                {"longUrl", srcUri.OriginalString},
+                ["login"] = this.BitlyId,
+                ["apiKey"] = this.BitlyKey,
+                ["format"] = "txt",
+                ["domain"] = domain,
+                ["longUrl"] = srcUri.OriginalString,
             };
 
             var uri = new Uri("https://api-ssl.bitly.com/v3/shorten?" + MyCommon.BuildQueryString(query));
@@ -482,8 +482,8 @@ namespace OpenTween
 
             var query = new Dictionary<string, string>
             {
-                {"format", "plain"},
-                {"url", srcUri.OriginalString},
+                ["format"] = "plain",
+                ["url"] = srcUri.OriginalString,
             };
 
             var uri = new Uri("http://ux.nu/api/short?" + MyCommon.BuildQueryString(query));
@@ -528,6 +528,12 @@ namespace OpenTween
                 var redirectedUrl = response.Headers.Location;
 
                 if (redirectedUrl == null)
+                    return null;
+
+                // サーバーが URL を適切にエンコードしていない場合、OriginalString に非 ASCII 文字が含まれる。
+                // その場合、redirectedUrl は文字化けしている可能性があるため使用しない
+                // 参照: http://stackoverflow.com/questions/1888933
+                if (redirectedUrl.OriginalString.Any(x => x < ' ' || x > '~'))
                     return null;
 
                 if (redirectedUrl.IsAbsoluteUri)
