@@ -32,17 +32,36 @@ namespace OpenTween.Thumbnail
 {
     public class ThumbnailInfo : IEquatable<ThumbnailInfo>
     {
-        public string ImageUrl { get; set; }
-        public string ThumbnailUrl { get; set; }
-        public string TooltipText { get; set; }
+        /// <summary>サムネイルとして表示するメディアが掲載されている URL</summary>
+        /// <remarks>
+        /// 例えば Youtube のサムネイルの場合、動画そのものの URL ではなく
+        /// https://www.youtube.com/watch?v=****** 形式の URL が含まれる
+        /// </remarks>
+        public string MediaPageUrl { get; set; }
+
+        /// <summary>サムネイルとして表示する画像の URL</summary>
+        /// <remarks>
+        /// ここに含まれる URL は直接画像として表示可能である必要がある
+        /// </remarks>
+        public string ThumbnailImageUrl { get; set; }
+
+        /// <summary>最も高解像度な画像の URL</summary>
+        /// <remarks>
+        /// サムネイルとしては不適だが、より高解像度な画像を表示する場面に使用できる
+        /// URL があればここに含まれる
+        /// </remarks>
         public string FullSizeImageUrl { get; set; }
 
-        public bool IsPlayable
-        {
-            get { return _IsPlayable; }
-            set { _IsPlayable = value; }
-        }
-        private bool _IsPlayable = false;
+        /// <summary>ツールチップとして表示するテキスト</summary>
+        /// <remarks>
+        /// サムネイル画像にマウスオーバーした際に表示されるテキスト
+        /// </remarks>
+        public string TooltipText { get; set; }
+
+        /// <summary>
+        /// 対象となるメディアが動画や音声など再生可能なものであるか否か
+        /// </summary>
+        public bool IsPlayable { get; set; }
 
         public Task<MemoryImage> LoadThumbnailImageAsync()
         {
@@ -56,15 +75,28 @@ namespace OpenTween.Thumbnail
 
         public async virtual Task<MemoryImage> LoadThumbnailImageAsync(HttpClient http, CancellationToken cancellationToken)
         {
-            using (var response = await http.GetAsync(this.ThumbnailUrl, cancellationToken).ConfigureAwait(false))
+            MemoryImage image = null;
+            try
             {
-                response.EnsureSuccessStatusCode();
-
-                using (var imageStream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false))
+                using (var response = await http.GetAsync(this.ThumbnailImageUrl, cancellationToken).ConfigureAwait(false))
                 {
-                    return await MemoryImage.CopyFromStreamAsync(imageStream)
-                        .ConfigureAwait(false);
+                    response.EnsureSuccessStatusCode();
+
+                    using (var imageStream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false))
+                    {
+                        image = await MemoryImage.CopyFromStreamAsync(imageStream)
+                            .ConfigureAwait(false);
+
+                        cancellationToken.ThrowIfCancellationRequested();
+
+                        return image;
+                    }
                 }
+            }
+            catch (OperationCanceledException)
+            {
+                image?.Dispose();
+                throw;
             }
         }
 
@@ -76,8 +108,8 @@ namespace OpenTween.Thumbnail
         public bool Equals(ThumbnailInfo other)
         {
             return other != null &&
-                other.ImageUrl == this.ImageUrl &&
-                other.ThumbnailUrl == this.ThumbnailUrl &&
+                other.MediaPageUrl == this.MediaPageUrl &&
+                other.ThumbnailImageUrl == this.ThumbnailImageUrl &&
                 other.TooltipText == this.TooltipText &&
                 other.FullSizeImageUrl == this.FullSizeImageUrl &&
                 other.IsPlayable == this.IsPlayable;
@@ -85,7 +117,7 @@ namespace OpenTween.Thumbnail
 
         public override int GetHashCode()
         {
-            return this.ImageUrl.GetHashCode() ^ this.ThumbnailUrl.GetHashCode();
+            return this.MediaPageUrl.GetHashCode() ^ this.ThumbnailImageUrl.GetHashCode();
         }
     }
 }

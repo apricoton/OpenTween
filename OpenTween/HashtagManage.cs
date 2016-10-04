@@ -29,6 +29,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
 using System.Drawing;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Windows.Forms;
@@ -95,10 +96,15 @@ namespace OpenTween
             {
                 return;
             }
-            for (int i = 0; i < HistoryHashList.SelectedIndices.Count; i++)
+
+            // 削除によってインデックス番号が変わらないように逆順に処理する
+            var selectedIndices = this.HistoryHashList.SelectedIndices.Cast<int>()
+                .OrderByDescending(x => x).ToArray();
+
+            foreach (var idx in selectedIndices)
             {
-                if (UseHashText.Text == HistoryHashList.SelectedItems[0].ToString()) UseHashText.Text = "";
-                HistoryHashList.Items.RemoveAt(HistoryHashList.SelectedIndices[0]);
+                if (UseHashText.Text == HistoryHashList.Items[idx].ToString()) UseHashText.Text = "";
+                HistoryHashList.Items.RemoveAt(idx);
             }
             if (HistoryHashList.Items.Count > 0)
             {
@@ -128,7 +134,7 @@ namespace OpenTween
                     idx += 1;
                     continue;
                 }
-                if (string.Compare(src, value, true) == 0)
+                if (string.Compare(src, value, StringComparison.OrdinalIgnoreCase) == 0)
                 {
                     return idx;
                 }

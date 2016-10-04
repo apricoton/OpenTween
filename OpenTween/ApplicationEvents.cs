@@ -139,19 +139,15 @@ namespace OpenTween
         {
             // 実行中の同じアプリケーションのウィンドウ・ハンドルの取得
             var prevProcess = GetPreviousProcess();
-            if (prevProcess == null || prevProcess.MainWindowHandle == IntPtr.Zero)
+            if (prevProcess == null)
             {
                 return;
             }
 
-            var form = Control.FromHandle(prevProcess.MainWindowHandle) as Form;
-            if (form != null)
+            IntPtr windowHandle = NativeMethods.GetWindowHandle((uint)prevProcess.Id, Application.ProductName);
+            if (windowHandle != IntPtr.Zero)
             {
-                if (form.WindowState == FormWindowState.Minimized)
-                {
-                    NativeMethods.RestoreWindow(form);
-                }
-                form.Activate();
+                NativeMethods.SetActiveWindow(windowHandle);
             }
         }
 
@@ -180,7 +176,7 @@ namespace OpenTween
 
         private static bool IsEqualCurrentCulture(string CultureName)
         {
-            return Thread.CurrentThread.CurrentUICulture.Name.StartsWith(CultureName);
+            return Thread.CurrentThread.CurrentUICulture.Name.StartsWith(CultureName, StringComparison.Ordinal);
         }
 
         public static string CultureCode
@@ -205,21 +201,16 @@ namespace OpenTween
             }
         }
 
-        public static void InitCulture(string code)
-        {
-            try
-            {
-                Thread.CurrentThread.CurrentUICulture = new CultureInfo(code);
-            }
-            catch (Exception)
-            {
-            }
-        }
         public static void InitCulture()
         {
             try
             {
-                if (CultureCode != "OS") Thread.CurrentThread.CurrentUICulture = new CultureInfo(CultureCode);
+                var culture = CultureInfo.CurrentCulture;
+                if (CultureCode != "OS")
+                    culture = new CultureInfo(CultureCode);
+
+                CultureInfo.DefaultThreadCurrentUICulture = culture;
+                Thread.CurrentThread.CurrentUICulture = culture;
             }
             catch (Exception)
             {

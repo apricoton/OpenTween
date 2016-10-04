@@ -287,31 +287,22 @@
     <value>POST完了</value>
   </data>
   <data name="GetTimelineWorker_RunWorkerCompletedText15" xml:space="preserve">
-    <value>Fav追加(</value>
-  </data>
-  <data name="GetTimelineWorker_RunWorkerCompletedText16" xml:space="preserve">
-    <value>) 失敗:</value>
+    <value>Fav追加({0}/{1}) 失敗:{2}</value>
   </data>
   <data name="GetTimelineWorker_RunWorkerCompletedText17" xml:space="preserve">
-    <value>Fav削除(</value>
-  </data>
-  <data name="GetTimelineWorker_RunWorkerCompletedText18" xml:space="preserve">
-    <value>) 失敗:</value>
+    <value>Fav削除({0}/{1}) 失敗:{2}</value>
   </data>
   <data name="GetTimelineWorker_RunWorkerCompletedText3" xml:space="preserve">
     <value>読み込み継続確認</value>
   </data>
   <data name="GetTimelineWorker_RunWorkerCompletedText4" xml:space="preserve">
-    <value>Reply更新中...</value>
+    <value>Reply更新中...{0}pages</value>
   </data>
   <data name="GetTimelineWorker_RunWorkerCompletedText5" xml:space="preserve">
-    <value>Recent更新中...</value>
-  </data>
-  <data name="GetTimelineWorker_RunWorkerCompletedText6" xml:space="preserve">
-    <value>pages</value>
+    <value>Recent更新中...{0}pages</value>
   </data>
   <data name="GetTimelineWorker_RunWorkerCompletedText8" xml:space="preserve">
-    <value>DMRcv更新中...</value>
+    <value>DMRcv更新中...{0}pages</value>
   </data>
   <data name="GetTimelineWorker_RunWorkerCompletedText9" xml:space="preserve">
     <value>Reply更新完了</value>
@@ -379,12 +370,6 @@
   <data name="Refresh4" type="System.Resources.ResXFileRef, System.Windows.Forms">
     <value>..\Resources\re4.ico;System.Drawing.Icon, System.Drawing, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
   </data>
-  <data name="RefreshDirectMessageText1" xml:space="preserve">
-    <value>新着</value>
-  </data>
-  <data name="RefreshDirectMessageText2" xml:space="preserve">
-    <value>件</value>
-  </data>
   <data name="RefreshStripMenuItem_ClickText1" xml:space="preserve">
     <value>Recent更新中...</value>
   </data>
@@ -394,11 +379,8 @@
   <data name="RefreshStripMenuItem_ClickText3" xml:space="preserve">
     <value>DMRcv更新中...</value>
   </data>
-  <data name="RefreshTimelineText1" xml:space="preserve">
-    <value>新着</value>
-  </data>
-  <data name="RefreshTimelineText2" xml:space="preserve">
-    <value>件</value>
+  <data name="RefreshTimeline_NotifyText" xml:space="preserve">
+    <value>新着 {0} 件</value>
   </data>
   <data name="RefreshTimelineText3" xml:space="preserve">
     <value>ログ読込</value>
@@ -686,7 +668,7 @@
     <value>完了！</value>
   </data>
   <data name="PostLengthOverMessage1" xml:space="preserve">
-    <value>140文字を越えています。URL短縮、フッタ除去、末尾カットを行って投稿しますか？</value>
+    <value>投稿できる文字数の上限を越えています。強制的に投稿しますか？</value>
   </data>
   <data name="PostLengthOverMessage2" xml:space="preserve">
     <value>文字数制限オーバー</value>
@@ -741,12 +723,6 @@
   </data>
   <data name="Yes" xml:space="preserve">
     <value>はい</value>
-  </data>
-  <data name="StatusUpdateFailed1" xml:space="preserve">
-    <value>投稿に失敗しました</value>
-  </data>
-  <data name="StatusUpdateFailed2" xml:space="preserve">
-    <value>もう一度投稿を試みますか？</value>
   </data>
   <data name="GetFriendshipInfo6" xml:space="preserve">
     <value>フォロー状況取得失敗</value>
@@ -961,9 +937,6 @@
   </data>
   <data name="MyLists1" xml:space="preserve">
     <value>を含むリストの管理</value>
-  </data>
-  <data name="PostLengthOverMessage3" xml:space="preserve">
-    <value>文末の＠ユーザー名が切り捨てられた可能性があるため、投稿をキャンセルします。</value>
   </data>
   <data name="FavstarUrl" xml:space="preserve">
     <value>http://ja.favstar.fm/</value>
@@ -1194,5 +1167,37 @@
   </data>
   <data name="SearchResults_TabName" xml:space="preserve">
     <value>検索結果</value>
+  </data>
+  <data name="StartupAuthError_Text" xml:space="preserve">
+    <value>Twitter API へのアクセスに失敗しました。
+[{0}]
+
+・ネットワーク設定が正しいか確認して下さい
+・PC の時計が正しいか確認して下さい
+ （大幅にずれていると認証に失敗することがあります）
+・設定画面から Twitter アカウントをもう一度追加し直して下さい</value>
+  </data>
+  <data name="SendErrorReport_DmSendCompleted" xml:space="preserve">
+    <value>DM の送信が完了しました</value>
+  </data>
+  <data name="SendErrorReport_DmSendError" xml:space="preserve">
+    <value>DM の送信に失敗しました</value>
+  </data>
+  <data name="ImageAltText" xml:space="preserve">
+    <value>[画像: {0}]</value>
+  </data>
+  <data name="AddNewTab_ListView_AccessibleName" xml:space="preserve">
+    <value>発言一覧</value>
+  </data>
+  <data name="QuoteStatus_AccessibleText" xml:space="preserve">
+    <value>[引用 @{0}: {1}]</value>
+  </data>
+  <data name="StatusText_AccessibleDescription" xml:space="preserve">
+    <value>残り{0}文字</value>
+  </data>
+  <data name="StatusUpdateFailed" xml:space="preserve">
+    <value>投稿に失敗しました   ---&gt;   [ {0} ]
+"{1}"
+もう一度投稿を試みますか？</value>
   </data>
 </root>

@@ -32,7 +32,7 @@ namespace OpenTween
     /// <remarks>
     /// OpenTween の派生版を作る方法は http://sourceforge.jp/projects/opentween/wiki/HowToFork を参照して下さい。
     /// </remarks>
-    internal sealed class ApplicationSettings
+    internal static class ApplicationSettings
     {
         //=====================================================================
         // フィードバック送信先
@@ -46,7 +46,15 @@ namespace OpenTween
         /// <summary>
         /// フィードバック送信先 (Twitter)
         /// </summary>
-        public const string FeedbackTwitterName = "@kim_upsilon";
+        public const string FeedbackTwitterName = "@OpenTween";
+
+        /// <summary>
+        /// FeedbackTwitterName のユーザー宛にエラーレポートの DM を送信可能であるか
+        /// </summary>
+        /// <remarks>
+        /// エラーレポートを DM で受け付ける場合は、フォロー外からの DM を受け付ける設定にする必要があります
+        /// </remarks>
+        public static readonly bool AllowSendErrorReportByDM = true;
 
         //=====================================================================
         // Web サイト

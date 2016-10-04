@@ -36,6 +36,7 @@ using System.Linq.Expressions;
 using System.Text.RegularExpressions;
 using System.IO;
 using System.Collections.Specialized;
+using OpenTween.Models;
 
 namespace OpenTween
 {
@@ -94,10 +95,13 @@ namespace OpenTween
         {
             if (ListTabs.Items.Count == 0) return;
 
+            ListFilters.Items.Clear();
+
             var tab = _sts.Tabs[tabName];
 
-            ListFilters.Items.Clear();
-            ListFilters.Items.AddRange(tab.GetFilters());
+            var filterTab = tab as FilterTabModel;
+            if (filterTab != null)
+                ListFilters.Items.AddRange(filterTab.GetFilters());
 
             if (ListFilters.Items.Count > 0)
                 ListFilters.SelectedIndex = 0;
@@ -394,18 +398,18 @@ namespace OpenTween
 
             if (selectedCount == 1)
             {
-                tmp = string.Format(Properties.Resources.ButtonDelete_ClickText1, Environment.NewLine, ListFilters.SelectedItem.ToString());
+                tmp = string.Format(Properties.Resources.ButtonDelete_ClickText1, Environment.NewLine, ListFilters.SelectedItem);
             }
             else
             {
-                tmp = string.Format(Properties.Resources.ButtonDelete_ClickText3, selectedCount.ToString());
+                tmp = string.Format(Properties.Resources.ButtonDelete_ClickText3, selectedCount);
             }
 
             var rslt = MessageBox.Show(tmp, Properties.Resources.ButtonDelete_ClickText2, MessageBoxButtons.OKCancel, MessageBoxIcon.Question);
             if (rslt == DialogResult.Cancel) return;
 
             var indices = ListFilters.SelectedIndices.Cast<int>().Reverse().ToArray();  // 後ろの要素から削除
-            var tab = _sts.Tabs[ListTabs.SelectedItem.ToString()];
+            var tab = (FilterTabModel)_sts.Tabs[ListTabs.SelectedItem.ToString()];
 
             using (ControlTransaction.Update(ListFilters))
             {
@@ -614,7 +618,7 @@ namespace OpenTween
                 return;
             }
 
-            var tab = this._sts.Tabs[(string)this.ListTabs.SelectedItem];
+            var tab = (FilterTabModel)this._sts.Tabs[(string)this.ListTabs.SelectedItem];
             int i = ListFilters.SelectedIndex;
 
             PostFilterRule ft;
@@ -984,13 +988,13 @@ namespace OpenTween
                 ListFilters.Items.Clear();
         }
 
-        private void ButtonAddTab_Click(object sender, EventArgs e)
+        private async void ButtonAddTab_Click(object sender, EventArgs e)
         {
             string tabName = null;
             MyCommon.TabUsageType tabType;
             using (InputTabName inputName = new InputTabName())
             {
-                inputName.TabName = _sts.GetUniqueTabName();
+                inputName.TabName = _sts.MakeTabName("MyTab");
                 inputName.IsShowUsage = true;
                 inputName.ShowDialog();
                 if (inputName.DialogResult == DialogResult.Cancel) return;
@@ -1005,8 +1009,17 @@ namespace OpenTween
                 {
                     try
                     {
-                        ((TweenMain)this.Owner).TwitterInstance.GetListsApi();
+                        using (var dialog = new WaitingDialog(Properties.Resources.ListsGetting))
+                        {
+                            var cancellationToken = dialog.EnableCancellation();
+
+                            var task = ((TweenMain)this.Owner).TwitterInstance.GetListsApi();
+                            await dialog.WaitForAsync(this, task);
+
+                            cancellationToken.ThrowIfCancellationRequested();
+                        }
                     }
+                    catch (OperationCanceledException) { return; }
                     catch (WebApiException ex)
                     {
                         MessageBox.Show("Failed to get lists. (" + ex.Message + ")");
@@ -1018,7 +1031,24 @@ namespace OpenTween
                         list = listAvail.SelectedList;
                     }
                 }
-                if (!_sts.AddTab(tabName, tabType, list) || !((TweenMain)this.Owner).AddNewTab(tabName, false, tabType, list))
+
+                TabModel tab;
+                switch (tabType)
+                {
+                    case MyCommon.TabUsageType.UserDefined:
+                        tab = new FilterTabModel(tabName);
+                        break;
+                    case MyCommon.TabUsageType.PublicSearch:
+                        tab = new PublicSearchTabModel(tabName);
+                        break;
+                    case MyCommon.TabUsageType.Lists:
+                        tab = new ListTimelineTabModel(tabName, list);
+                        break;
+                    default:
+                        return;
+                }
+
+                if (!_sts.AddTab(tab) || !((TweenMain)this.Owner).AddNewTab(tab, startup: false))
                 {
                     string tmp = string.Format(Properties.Resources.AddTabMenuItem_ClickText1, tabName);
                     MessageBox.Show(tmp, Properties.Resources.AddTabMenuItem_ClickText2, MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
@@ -1063,12 +1093,14 @@ namespace OpenTween
         {
             if (ListTabs.SelectedIndex > -1 && !string.IsNullOrEmpty(ListTabs.SelectedItem.ToString()))
             {
-                string tb = ListTabs.SelectedItem.ToString();
                 int idx = ListTabs.SelectedIndex;
-                if (((TweenMain)this.Owner).TabRename(ref tb))
+
+                var origTabName = (string)this.ListTabs.SelectedItem;
+                string newTabName;
+                if (((TweenMain)this.Owner).TabRename(origTabName, out newTabName))
                 {
                     ListTabs.Items.RemoveAt(idx);
-                    ListTabs.Items.Insert(idx, tb);
+                    ListTabs.Items.Insert(idx, newTabName);
                     ListTabs.SelectedIndex = idx;
                 }
             }
@@ -1206,7 +1238,7 @@ namespace OpenTween
             }
 
             var lastSelIdx = indices[0] + diff;
-            var tab = _sts.Tabs[ListTabs.Items[tabIdx].ToString()];
+            var tab = (FilterTabModel)_sts.Tabs[ListTabs.Items[tabIdx].ToString()];
 
             try
             {
@@ -1269,7 +1301,7 @@ namespace OpenTween
         {
             if (ListTabs.SelectedIndex > -1 && ListFilters.SelectedItem != null)
             {
-                TabClass[] selectedTabs;
+                TabModel[] selectedTabs;
                 using (TabsDialog dialog = new TabsDialog(_sts))
                 {
                     dialog.MultiSelect = true;
@@ -1285,9 +1317,10 @@ namespace OpenTween
 
                 foreach (int idx in ListFilters.SelectedIndices)
                 {
-                    filters.Add(_sts.Tabs[tabname].FilterArray[idx].Clone());
+                    var tab = (FilterTabModel)_sts.Tabs[tabname];
+                    filters.Add(tab.FilterArray[idx].Clone());
                 }
-                foreach (var tb in selectedTabs)
+                foreach (var tb in selectedTabs.Cast<FilterTabModel>())
                 {
                     if (tb.TabName == tabname) continue;
 
@@ -1305,7 +1338,7 @@ namespace OpenTween
         {
             if (ListTabs.SelectedIndex > -1 && ListFilters.SelectedItem != null)
             {
-                TabClass[] selectedTabs;
+                TabModel[] selectedTabs;
                 using (var dialog = new TabsDialog(_sts))
                 {
                     dialog.MultiSelect = true;
@@ -1320,10 +1353,11 @@ namespace OpenTween
 
                 foreach (int idx in ListFilters.SelectedIndices)
                 {
-                    filters.Add(_sts.Tabs[tabname].FilterArray[idx].Clone());
+                    var tab = (FilterTabModel)_sts.Tabs[tabname];
+                    filters.Add(tab.FilterArray[idx].Clone());
                 }
                 if (selectedTabs.Length == 1 && selectedTabs[0].TabName == tabname) return;
-                foreach (var tb in selectedTabs)
+                foreach (var tb in selectedTabs.Cast<FilterTabModel>())
                 {
                     if (tb.TabName == tabname) continue;
 
@@ -1337,7 +1371,8 @@ namespace OpenTween
                 {
                     if (ListFilters.GetSelected(idx))
                     {
-                        _sts.Tabs[ListTabs.SelectedItem.ToString()].RemoveFilter((PostFilterRule)ListFilters.Items[idx]);
+                        var tab = (FilterTabModel)_sts.Tabs[ListTabs.SelectedItem.ToString()];
+                        tab.RemoveFilter((PostFilterRule)ListFilters.Items[idx]);
                         ListFilters.Items.RemoveAt(idx);
                     }
                 }
@@ -1455,9 +1490,9 @@ namespace OpenTween
             }
         }
 
-        protected override void OnFontChanged(EventArgs e)
+        protected override void ScaleControl(SizeF factor, BoundsSpecified specified)
         {
-            base.OnFontChanged(e);
+            base.ScaleControl(factor, specified);
             this.ListFilters.ItemHeight = this.ListFilters.Font.Height;
         }
     }

@@ -25,6 +25,8 @@ using System.ComponentModel;
 using System.Drawing;
 using System.Linq;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace OpenTween
@@ -50,10 +52,12 @@ namespace OpenTween
         /// </remarks>
         public SizeF CurrentScaleFactor { get; private set; }
 
+        private readonly SynchronizationContext synchronizationContext;
+
         protected OTBaseForm()
-            : base()
         {
             this.CurrentScaleFactor = new SizeF(1.0f, 1.0f);
+            this.synchronizationContext = SynchronizationContext.Current;
 
             this.Load += (o, e) =>
             {
@@ -61,6 +65,37 @@ namespace OpenTween
                 if (OTBaseForm.GlobalFont != null)
                     this.Font = OTBaseForm.GlobalFont;
             };
+        }
+
+        public Task InvokeAsync(Action x)
+            => this.InvokeAsync(new Func<int>(() => { x(); return 0; }));
+
+        public Task InvokeAsync(Func<Task> x)
+            => this.InvokeAsync<Task>(x).Unwrap();
+
+        public Task<T> InvokeAsync<T>(Func<Task<T>> x)
+            => this.InvokeAsync<Task<T>>(x).Unwrap();
+
+        /// <summary>
+        /// <see cref="Control.Invoke"/> メソッドのTask版みたいなやつ
+        /// </summary>
+        public Task<T> InvokeAsync<T>(Func<T> x)
+        {
+            var tcs = new TaskCompletionSource<T>();
+            this.synchronizationContext.Post(_ =>
+            {
+                try
+                {
+                    var ret = x();
+                    tcs.SetResult(ret);
+                }
+                catch (Exception ex)
+                {
+                    tcs.SetException(ex);
+                }
+            }, null);
+
+            return tcs.Task;
         }
 
         /// <summary>

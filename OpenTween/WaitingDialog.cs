@@ -39,7 +39,6 @@ namespace OpenTween
     /// </remarks>
     public partial class WaitingDialog : OTBaseForm
     {
-        private readonly SynchronizationContext synchronizationContext;
         private readonly Lazy<CancellationTokenSource> cancellationTokenSource;
 
         private bool cancellationEnabled = false;
@@ -62,7 +61,6 @@ namespace OpenTween
         {
             this.InitializeComponent();
 
-            this.synchronizationContext = SynchronizationContext.Current;
             this.cancellationTokenSource = new Lazy<CancellationTokenSource>();
 
             this.Timeout = TimeSpan.FromMilliseconds(500);
@@ -88,12 +86,12 @@ namespace OpenTween
 
         public Task WaitForAsync(Task task)
         {
-            return this.WaitForAsync(task.ContinueWith(_ => 0));
+            return this.WaitForAsync(this.ConvertTaskWithValue(task));
         }
 
         public Task WaitForAsync(IWin32Window owner, Task task)
         {
-            return this.WaitForAsync(owner, task.ContinueWith(_ => 0));
+            return this.WaitForAsync(owner, this.ConvertTaskWithValue(task));
         }
 
         public Task<T> WaitForAsync<T>(Task<T> task)
@@ -125,19 +123,11 @@ namespace OpenTween
             });
         }
 
-        /// <summary>
-        /// Control.InvokeメソッドのTask版みたいなやつ
-        /// </summary>
-        private Task<T> InvokeAsync<T>(Func<T> x)
+        /// <summary>Task を Task&lt;T&gt; に変換したいだけ</summary>
+        private async Task<int> ConvertTaskWithValue(Task task)
         {
-            var tcs = new TaskCompletionSource<T>();
-            this.synchronizationContext.Post(_ =>
-            {
-                var ret = x();
-                tcs.SetResult(ret);
-            }, null);
-
-            return tcs.Task;
+            await task.ConfigureAwait(false);
+            return 0;
         }
 
         private void ProgressDialog_FormClosing(object sender, FormClosingEventArgs e)

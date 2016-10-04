@@ -30,13 +30,13 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using OpenTween.Api;
+using OpenTween.Api.DataModel;
 
 namespace OpenTween.Connection
 {
     public class TwitterPhoto : IMediaUploadService
     {
-        private readonly string[] pictureExt = new[] { ".jpg", ".jpeg", ".gif", ".png" };
+        private readonly string[] pictureExt = { ".jpg", ".jpeg", ".gif", ".png" };
 
         private readonly Twitter tw;
         private TwitterConfiguration twitterConfig;
@@ -60,9 +60,11 @@ namespace OpenTween.Connection
             }
         }
 
+        public bool CanUseAltText => true;
+
         public bool CheckFileExtension(string fileExtension)
         {
-            return this.pictureExt.Contains(fileExtension.ToLower());
+            return this.pictureExt.Contains(fileExtension.ToLowerInvariant());
         }
 
         public bool CheckFileSize(string fileExtension, long fileSize)
@@ -93,19 +95,37 @@ namespace OpenTween.Connection
                     throw new ArgumentException("Err:Media not found.");
             }
 
-            await Task.Run(() => this.tw.PostStatusWithMultipleMedia(text, inReplyToStatusId, mediaItems))
+            var uploadTasks = from m in mediaItems
+                              select this.UploadMediaItem(m);
+
+            var mediaIds = await Task.WhenAll(uploadTasks)
+                .ConfigureAwait(false);
+
+            await this.tw.PostStatus(text, inReplyToStatusId, mediaIds)
                 .ConfigureAwait(false);
         }
 
+        // pic.twitter.com の URL は文字数にカウントされない
         public int GetReservedTextLength(int mediaCount)
-        {
-            // 枚数に関わらず文字数は一定
-            return this.twitterConfig.ShortUrlLength;
-        }
+            => 0;
 
         public void UpdateTwitterConfiguration(TwitterConfiguration config)
         {
             this.twitterConfig = config;
+        }
+
+        private async Task<long> UploadMediaItem(IMediaItem mediaItem)
+        {
+            var mediaId = await this.tw.UploadMedia(mediaItem)
+                .ConfigureAwait(false);
+
+            if (!string.IsNullOrEmpty(mediaItem.AltText))
+            {
+                await this.tw.Api.MediaMetadataCreate(mediaId, mediaItem.AltText)
+                    .ConfigureAwait(false);
+            }
+
+            return mediaId;
         }
     }
 }

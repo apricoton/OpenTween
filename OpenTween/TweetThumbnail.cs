@@ -34,12 +34,14 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using OpenTween.Thumbnail;
 using System.Threading;
+using OpenTween.Models;
 
 namespace OpenTween
 {
     public partial class TweetThumbnail : UserControl
     {
         protected internal List<OTPictureBox> pictureBox = new List<OTPictureBox>();
+        protected MouseWheelMessageFilter filter = new MouseWheelMessageFilter();
 
         public event EventHandler ThumbnailLoading;
         public event EventHandler<ThumbnailDoubleClickEventArgs> ThumbnailDoubleClick;
@@ -65,8 +67,9 @@ namespace OpenTween
             var loadTasks = new List<Task>();
 
             this.scrollBar.Enabled = false;
+            this.scrollBar.Visible = false;
 
-            if (post.Media.Count == 0 && post.PostGeo == null)
+            if (post.ExpandedUrls.Length == 0 && post.Media.Count == 0 && post.PostGeo == null)
             {
                 this.SetThumbnailCount(0);
                 return;
@@ -96,22 +99,31 @@ namespace OpenTween
                 if (!string.IsNullOrEmpty(tooltipText))
                 {
                     this.toolTip.SetToolTip(picbox, tooltipText);
+                    picbox.AccessibleDescription = tooltipText;
                 }
 
                 cancelToken.ThrowIfCancellationRequested();
             }
 
             if (thumbnails.Length > 1)
+            {
                 this.scrollBar.Enabled = true;
+                this.scrollBar.Visible = true;
+            }
 
             this.ThumbnailLoading?.Invoke(this, EventArgs.Empty);
 
             await Task.WhenAll(loadTasks).ConfigureAwait(false);
         }
 
-        private string GetImageSearchUri(string image_uri)
+        private string GetImageSearchUriGoogle(string image_uri)
         {
             return @"https://www.google.com/searchbyimage?image_url=" + Uri.EscapeDataString(image_uri);
+        }
+
+        private string GetImageSearchUriSauceNao(string imageUri)
+        {
+            return @"https://saucenao.com/search.php?url=" + Uri.EscapeDataString(imageUri);
         }
 
         protected virtual Task<IEnumerable<ThumbnailInfo>> GetThumbailInfoAsync(PostClass post, CancellationToken token)
@@ -134,6 +146,11 @@ namespace OpenTween
                 foreach (var picbox in this.pictureBox)
                 {
                     var memoryImage = picbox.Image;
+
+                    filter.Unregister(picbox);
+
+                    picbox.MouseWheel -= this.pictureBox_MouseWheel;
+                    picbox.DoubleClick -= this.pictureBox_DoubleClick;
                     picbox.Dispose();
 
                     memoryImage?.Dispose();
@@ -150,7 +167,10 @@ namespace OpenTween
                 {
                     var picbox = CreatePictureBox("pictureBox" + i);
                     picbox.Visible = (i == 0);
+                    picbox.MouseWheel += this.pictureBox_MouseWheel;
                     picbox.DoubleClick += this.pictureBox_DoubleClick;
+
+                    filter.Register(picbox);
 
                     this.panelPictureBox.Controls.Add(picbox);
                     this.pictureBox.Add(picbox);
@@ -161,12 +181,13 @@ namespace OpenTween
         [SuppressMessage("Microsoft.Reliability", "CA2000:DisposeObjectsBeforeLosingScope")]
         protected virtual OTPictureBox CreatePictureBox(string name)
         {
-            return new OTPictureBox()
+            return new OTPictureBox
             {
                 Name = name,
                 SizeMode = PictureBoxSizeMode.Zoom,
                 WaitOnLoad = false,
                 Dock = DockStyle.Fill,
+                AccessibleRole = AccessibleRole.Graphic,
             };
         }
 
@@ -208,6 +229,14 @@ namespace OpenTween
             }
         }
 
+        private void pictureBox_MouseWheel(object sender, MouseEventArgs e)
+        {
+            if (e.Delta > 0)
+                this.ScrollUp();
+            else
+                this.ScrollDown();
+        }
+
         private void pictureBox_DoubleClick(object sender, EventArgs e)
         {
             var thumb = ((PictureBox)sender).Tag as ThumbnailInfo;
@@ -222,22 +251,33 @@ namespace OpenTween
             var picbox = (OTPictureBox)this.contextMenuStrip.SourceControl;
             var thumb = (ThumbnailInfo)picbox.Tag;
 
-            var searchTargetUri = thumb.FullSizeImageUrl ?? thumb.ThumbnailUrl ?? null;
+            var searchTargetUri = thumb.FullSizeImageUrl ?? thumb.ThumbnailImageUrl ?? null;
             if (searchTargetUri != null)
             {
-                this.searchSimilarImageMenuItem.Enabled = true;
-                this.searchSimilarImageMenuItem.Tag = searchTargetUri;
+                this.searchImageGoogleMenuItem.Enabled = true;
+                this.searchImageGoogleMenuItem.Tag = searchTargetUri;
+                this.searchImageSauceNaoMenuItem.Enabled = true;
+                this.searchImageSauceNaoMenuItem.Tag = searchTargetUri;
             }
             else
             {
-                this.searchSimilarImageMenuItem.Enabled = false;
+                this.searchImageGoogleMenuItem.Enabled = false;
+                this.searchImageSauceNaoMenuItem.Enabled = false;
             }
         }
 
         private void searchSimilarImageMenuItem_Click(object sender, EventArgs e)
         {
-            var searchTargetUri = (string)this.searchSimilarImageMenuItem.Tag;
-            var searchUri = this.GetImageSearchUri(searchTargetUri);
+            var searchTargetUri = (string)this.searchImageGoogleMenuItem.Tag;
+            var searchUri = this.GetImageSearchUriGoogle(searchTargetUri);
+
+            this.ThumbnailImageSearchClick?.Invoke(this, new ThumbnailImageSearchEventArgs(searchUri));
+        }
+
+        private void searchImageSauceNaoMenuItem_Click(object sender, EventArgs e)
+        {
+            var searchTargetUri = (string)this.searchImageSauceNaoMenuItem.Tag;
+            var searchUri = this.GetImageSearchUriSauceNao(searchTargetUri);
 
             this.ThumbnailImageSearchClick?.Invoke(this, new ThumbnailImageSearchEventArgs(searchUri));
         }
